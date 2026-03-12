@@ -21,7 +21,8 @@ const RATE_LIMITED_PATHS = ['/login', '/auth/callback'];
 // Rate limiter en mémoire (par IP, 10 req / 60s sur routes auth)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-function isRateLimited(ip: string, max = 10, windowMs = 60_000): boolean {
+// Dans middleware.ts
+function isRateLimited(ip: string, max = 100, windowMs = 60_000): boolean { // Passe max à 100  
   const now = Date.now();
   // Nettoyage opportuniste
   if (rateLimitMap.size > 10_000) {

@@ -45,18 +45,28 @@ export function ClientForm({ initialData }: ClientFormProps) {
   const { register, handleSubmit, formState: { errors } } = form;
   const busy = isPending;
 
-  function onSubmit(values: ClientFormValues) {
+function onSubmit(values: ClientFormValues) {
     startTransition(async () => {
       const result = await upsertClient(values);
+      
       if (result.success) {
         toast('success', isEditing ? 'Client modifié.' : 'Client créé.');
         router.push('/dashboard/clients');
         router.refresh();
       } else {
         toast('error', result.error);
+        
         if (result.fieldErrors) {
+          // Correction de la syntaxe pour le Build
           Object.entries(result.fieldErrors).forEach(([key, msgs]) => {
-            form.setError(key as keyof typeof form.getValues(), { message: msgs[0] });
+            if (msgs && msgs.length > 0) {
+              // On utilise "any" ici pour éviter l'erreur de compilation Syntax Error
+              const fieldName = key as any;
+              form.setError(fieldName, { 
+                type: 'manual',
+                message: msgs[0] 
+              });
+            }
           });
         }
       }

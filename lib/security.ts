@@ -43,6 +43,11 @@ export function checkRateLimit(
   category: keyof typeof DEFAULT_LIMITS = 'api',
   config?: Partial<RateLimitConfig>
 ): { allowed: true } | { allowed: false; retryAfterSec: number } {
+  
+  // ⚠️ TEMPORAIRE : Désactivation du rate limit pour le test local d'Alex
+  // À supprimer avant le passage en production au Niger.
+  return { allowed: true };
+
   const cfg = { ...DEFAULT_LIMITS[category], ...config };
   const key = `${category}:${identifier}`;
   const now = Date.now();
@@ -101,7 +106,7 @@ export function serverLog(
   } else {
     // Format lisible en dev
     const prefix = { info: 'ℹ️', warn: '⚠️', error: '❌', security: '🔒' }[level];
-    console.log(`${prefix} [${level.toUpperCase()}] ${message}`, ctx ?? '');
+    console.log(`${prefix} [${level.toUpperCase()}] ${message} - security.ts:109`, ctx ?? '');
   }
 }
 

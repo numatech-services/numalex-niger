@@ -24,25 +24,31 @@ export const metadata = { title: 'Tableau de bord' };
 
 export default async function DashboardPage() {
   let profile;
+  
+  // 1. Vérification du profil
   try {
     profile = await fetchCurrentProfile();
-  } catch {
+    if (!profile) throw new Error("Profil introuvable");
+  } catch (error) {
+    console.error("Erreur Profil:", error);
     redirect('/login');
   }
 
-  // Charger toutes les données en parallèle — filtrage cabinet_id explicite
   const cid = profile.cabinet_id;
+
+  // 2. Chargement des données avec sécurité (si une fonction échoue, la page ne devient pas blanche)
   const [kpis, recentMatters, todayEvents, alerts, tasks, documents] = await Promise.all([
-    fetchDashboardKpis(cid),
-    fetchRecentMatters(cid),
-    fetchTodayEvents(cid),
-    fetchRecentAlerts(cid),
-    fetchPendingTasks(cid),
-    fetchRecentDocuments(cid),
+    fetchDashboardKpis(cid).catch(() => ({ total_matters: 0, active_clients: 0, pending_tasks: 0, revenue: 0 })),
+    fetchRecentMatters(cid).catch(() => []),
+    fetchTodayEvents(cid).catch(() => []),
+    fetchRecentAlerts(cid).catch(() => []),
+    fetchPendingTasks(cid).catch(() => []),
+    fetchRecentDocuments(cid).catch(() => []),
   ]);
 
   const greeting = getGreeting();
-  const displayName = profile.full_name?.split(' ')[0] ?? 'Maître';
+  // Utilise 'full_name' ou 'Maître' par défaut si les colonnes sont vides
+  const displayName = profile.full_name ? profile.full_name.split(' ')[0] : 'Maître';
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">

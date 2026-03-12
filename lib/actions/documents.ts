@@ -9,7 +9,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
-interface UploadResult { success: true; documentId: string } | { success: false; error: string };
+//interface UploadResult { success: true; documentId: string } | { success: false; error: string };
+type UploadResult = 
+  | { success: true; documentId: string } 
+  | { success: false; error: string }
 
 export async function uploadDocument(formData: FormData): Promise<UploadResult> {
   const supabase = createClient();
@@ -58,7 +61,7 @@ export async function uploadDocument(formData: FormData): Promise<UploadResult> 
     .upload(storagePath, file, { contentType: file.type, upsert: false });
 
   if (uploadError) {
-    console.error('[uploadDocument] Storage error:', uploadError);
+    console.error('[uploadDocument] Storage error: - documents.ts:64', uploadError);
     return { success: false, error: 'Échec de l\'upload : ' + uploadError.message };
   }
 

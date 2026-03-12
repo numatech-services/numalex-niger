@@ -1,8 +1,3 @@
-// ============================================================
-// NumaLex — Dashboard Layout (Server Component)
-// Récupère le profil puis rend le Sidebar (Client) + ToastProvider
-// ============================================================
-
 import { redirect } from 'next/navigation';
 import { fetchCurrentProfile } from '@/lib/queries/matters';
 import { Sidebar } from '@/components/dashboard/sidebar';
@@ -14,6 +9,7 @@ const ROLE_LABELS: Record<string, string> = {
   avocat: 'Avocat',
   huissier: 'Huissier',
   notaire: 'Notaire',
+  admin: 'Administrateur'
 };
 
 export default async function DashboardLayout({
@@ -24,20 +20,26 @@ export default async function DashboardLayout({
   let profile;
   try {
     profile = await fetchCurrentProfile();
-  } catch {
-    redirect('/login');
+    if (!profile) throw new Error("No profile");
+  } catch (err) {
+    console.error("Layout Profile Error:", err);
+    return redirect('/login');
   }
 
-  const userName = profile.full_name ?? profile.phone ?? 'Utilisateur';
-  const roleLabel = ROLE_LABELS[profile.role] ?? profile.role;
+  // Sécurité sur les noms et rôles
+  const userName = profile.full_name || profile.first_name || 'Utilisateur';
+  const roleLabel = ROLE_LABELS[profile.role || 'avocat'] || 'Utilisateur';
 
   return (
     <ToastProvider>
       <div className="flex min-h-screen bg-slate-50">
-        {/* Sidebar avec navigation active + mobile */}
-        <Sidebar userName={userName} userRole={profile.role} roleLabel={roleLabel} />
+        {/* Sidebar */}
+        <Sidebar 
+          userName={userName} 
+          userRole={profile.role || 'avocat'} 
+          roleLabel={roleLabel} 
+        />
 
-        {/* Zone principale */}
         <div className="flex flex-1 flex-col min-w-0">
           {/* Top bar */}
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md sm:px-6">
