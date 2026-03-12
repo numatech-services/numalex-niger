@@ -5,7 +5,7 @@
   "description": "SaaS juridique pour avocats, notaires et huissiers au Niger (Zone OHADA)",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/check-env.js && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
