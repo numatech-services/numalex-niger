@@ -7,23 +7,25 @@ export default async function SuperadminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // 1. Protection de toute la zone superadmin
+  // 1. Protection de la zone superadmin
   const user = await getSessionUser();
 
-  // Si pas connecté ou pas admin, redirection immédiate
+  // ✅ Correction : Redirection vers /login au lieu de /admin-login
   if (!user || user.role !== "superadmin") {
-    redirect("/admin-login");
+    redirect("/login");
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      {/* 2. Menu Latéral Fixe (Client Component) */}
-      <AdminSidebar email={user.email || ""} />
+    <div className="min-h-screen bg-slate-50/50">
+      {/* 2. Sidebar fixe (w-64) */}
+      <AdminSidebar userEmail={user.email || ""} />
 
-      {/* 3. Zone de contenu décalée vers la droite pour laisser place à la sidebar */}
-      <div className="ml-72 min-h-screen">
-        {children}
-      </div>
+      {/* 3. Contenu principal décalé de la largeur de la sidebar (ml-64) */}
+      <main className="ml-64 min-h-screen">
+        <div className="max-w-[1600px] mx-auto">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

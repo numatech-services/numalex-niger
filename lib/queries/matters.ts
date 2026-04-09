@@ -1,8 +1,8 @@
 // ============================================================
 // NumaLex — Couche d'accès aux données : Dossiers (Matters)
 //
-// FIX C2 : Sanitisation du paramètre `search` pour empêcher
-//          l'injection de filtres PostgREST via .or().
+// FIX C2 : Sanitisation du paramètre `search`
+// FIX C7 : Utilisation de .maybeSingle() pour éviter le crash 406
 // ============================================================
 
 import { createClient } from '@/lib/supabase/server';
@@ -22,24 +22,20 @@ interface FetchMattersResult {
 }
 
 /**
- * Échappe les caractères spéciaux PostgREST pour éviter l'injection de filtres.
- * Les caractères dangereux dans un contexte `.or()` sont : , . ( ) % _
- * On échappe % et _ (wildcards LIKE) et on supprime les virgules/points
- * qui pourraient casser la syntaxe du filtre.
+ * Échappe les caractères spéciaux PostgREST
  */
 function sanitizeSearch(raw: string): string {
   return raw
-    .replace(/[,()]/g, '')      // Supprime les délimiteurs PostgREST
-    .replace(/\\/g, '\\\\')     // Échappe les backslashes
-    .replace(/%/g, '\\%')       // Échappe le wildcard %
-    .replace(/_/g, '\\_')       // Échappe le wildcard _
+    .replace(/[,()]/g, '')
+    .replace(/\\/g, '\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_')
     .trim()
-    .slice(0, 100);             // Limite la longueur
+    .slice(0, 100);
 }
 
 /**
- * Récupère les dossiers paginés pour le cabinet de l'utilisateur connecté.
- * Le RLS Supabase garantit le cloisonnement par cabinet.
+ * Récupère les dossiers paginés
  */
 export async function fetchMatters({
   page,
@@ -48,7 +44,6 @@ export async function fetchMatters({
 }: FetchMattersParams): Promise<FetchMattersResult> {
   const supabase = createClient();
 
-  // ---- Requête de base avec jointures ----
   let query = supabase
     .from('matters')
     .select(
@@ -61,13 +56,11 @@ export async function fetchMatters({
     )
     .order('created_at', { ascending: false });
 
-  // ---- Filtres optionnels ----
   if (status) {
     query = query.eq('status', status);
   }
 
   if (search && search.trim()) {
-    // FIX C2 : Sanitiser l'input avant de l'injecter dans le filtre
     const safe = sanitizeSearch(search);
     if (safe.length > 0) {
       query = query.or(
@@ -76,7 +69,6 @@ export async function fetchMatters({
     }
   }
 
-  // ---- Pagination ----
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
   query = query.range(from, to);
@@ -84,7 +76,12 @@ export async function fetchMatters({
   const { data, error, count } = await query;
 
   if (error) {
-    throw new Error(`Erreur chargement dossiers : ${error.message}`);
+    // On retourne un tableau vide au lieu de crash le serveur
+    console.error(`[fetchMatters] Erreur : ${error.message} - matters.ts:80`);
+    return {
+      matters: [],
+      pagination: { page, pageSize: PAGE_SIZE, total: 0, totalPages: 0 }
+    };
   }
 
   const total = count ?? 0;
@@ -102,28 +99,30 @@ export async function fetchMatters({
 
 /**
  * Récupère le profil de l'utilisateur connecté.
+ * CORRECTIF CRITIQUE : Utilise .maybeSingle() pour éviter le crash 406 (JSON Coercion)
  */
-export async function fetchCurrentProfile(): Promise<Profile> {
+export async function fetchCurrentProfile(): Promise<Profile | null> {
   const supabase = createClient();
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  // 1. On récupère la session auth (cookie)
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    throw new Error('Utilisateur non authentifié');
+    return null;
   }
 
+  // 2. On cherche la ligne correspondante dans 'profiles'
   const { data, error } = await supabase
     .from('profiles')
     .select('id, cabinet_id, role, full_name, phone, avatar_url')
     .eq('id', user.id)
-    .single();
+    .maybeSingle(); // <--- Empêche le crash si la ligne n'existe pas
 
-  if (error || !data) {
-    throw new Error(`Profil introuvable : ${error?.message ?? 'aucune donnée'}`);
+  if (error) {
+    console.error("Erreur technique profil (): - matters.ts:122", error.message);
+    return null;
   }
 
-  return data as Profile;
+  // On caste en Profile si data existe, sinon null
+  return data as Profile | null;
 }

@@ -6,7 +6,7 @@ import { CreditCard, Users, Zap, Target, ArrowUpRight } from "lucide-react";
 
 export default async function SuperadminPage() {
   const user = await getSessionUser();
-  if (!user || user.role !== "superadmin") redirect("/admin-login");
+  if (!user || user.role !== "superadmin") redirect("/login");
 
   const supabase = createClient();
 

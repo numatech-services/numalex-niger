@@ -1,5 +1,5 @@
 // ============================================================
-// NumaLex — Tableau de bord principal
+// NumaLex — Tableau de bord principal (CORRIGÉ & SÉCURISÉ)
 // Route : /dashboard
 // ============================================================
 
@@ -23,20 +23,19 @@ import { OpenDocuments } from '@/components/dashboard/open-documents';
 export const metadata = { title: 'Tableau de bord' };
 
 export default async function DashboardPage() {
-  let profile;
-  
-  // 1. Vérification du profil
-  try {
-    profile = await fetchCurrentProfile();
-    if (!profile) throw new Error("Profil introuvable");
-  } catch (error) {
-    console.error("Erreur Profil:", error);
-    redirect('/login');
+  // 1. Récupération du profil sans bloc try/catch bloquant
+  const profile = await fetchCurrentProfile();
+
+  // Si vraiment aucun utilisateur n'est retourné (session expirée)
+  if (!profile) {
+    return redirect('/login');
   }
 
   const cid = profile.cabinet_id;
+  const isSuperAdmin = profile.role === 'superadmin';
 
-  // 2. Chargement des données avec sécurité (si une fonction échoue, la page ne devient pas blanche)
+  // 2. Chargement des données avec une sécurité totale
+  // On s'assure que même si une fonction est bloquée par la RLS, le reste s'affiche
   const [kpis, recentMatters, todayEvents, alerts, tasks, documents] = await Promise.all([
     fetchDashboardKpis(cid).catch(() => ({ total_matters: 0, active_clients: 0, pending_tasks: 0, revenue: 0 })),
     fetchRecentMatters(cid).catch(() => []),
@@ -47,36 +46,65 @@ export default async function DashboardPage() {
   ]);
 
   const greeting = getGreeting();
-  // Utilise 'full_name' ou 'Maître' par défaut si les colonnes sont vides
   const displayName = profile.full_name ? profile.full_name.split(' ')[0] : 'Maître';
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      {/* Debug: Si tu vois ce texte mais rien d'autre, c'est un composant enfant qui crash */}
+      <span className="sr-only">Rendu Dashboard Actif</span>
+
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          {greeting}, {displayName}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            {greeting}, {displayName}
+          </h1>
+          {isSuperAdmin && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase text-amber-700">
+              Mode Admin
+            </span>
+          )}
+        </div>
         <p className="mt-1 text-sm text-slate-500">
-          Voici le résumé de votre cabinet pour aujourd'hui.
+          {cid 
+            ? "Voici le résumé de votre cabinet pour aujourd'hui." 
+            : "Vue d'ensemble administrateur (aucun cabinet lié)."}
         </p>
       </div>
 
-      {/* KPIs */}
-      <KpiCards kpis={kpis} />
+      {/* Condition d'affichage : soit on a un cabinet, soit on est superadmin */}
+      {!cid && !isSuperAdmin ? (
+        <div className="rounded-xl border-2 border-dashed border-slate-200 p-12 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+             <span className="text-xl">⚖️</span>
+          </div>
+          <h3 className="mt-4 text-sm font-semibold text-slate-900">Cabinet non configuré</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Votre profil doit être rattaché à un cabinet pour accéder aux dossiers.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Section KPIs */}
+          <KpiCards kpis={kpis} />
 
-      {/* Ligne 1 : Dossiers récents + Agenda + Alertes */}
-      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-        <RecentMatters matters={recentMatters ?? []} />
-        <TodayAgenda events={todayEvents ?? []} />
-        <AlertsPanel alerts={alerts ?? []} />
-      </div>
-
-      {/* Ligne 2 : Documents + Tâches */}
-      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-        <OpenDocuments documents={documents ?? []} />
-        <TasksList tasks={tasks ?? []} />
-      </div>
+          {/* Grille principale */}
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              <RecentMatters matters={recentMatters || []} />
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                 <OpenDocuments documents={documents || []} />
+                 <TasksList tasks={tasks || []} />
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <TodayAgenda events={todayEvents || []} />
+              <AlertsPanel alerts={alerts || []} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

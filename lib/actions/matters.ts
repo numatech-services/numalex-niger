@@ -115,7 +115,7 @@ export async function upsertMatter(
       .eq('id', id);
 
     if (updateError) {
-      console.error('[upsertMatter] UPDATE error:', updateError);
+      console.error('[upsertMatter] UPDATE error: - matters.ts:118', updateError);
       return {
         success: false,
         error: `Échec de la mise à jour : ${updateError.message}`,
@@ -134,7 +134,7 @@ export async function upsertMatter(
       .single();
 
     if (insertError || !newMatter) {
-      console.error('[upsertMatter] INSERT error:', insertError);
+      console.error('[upsertMatter] INSERT error: - matters.ts:137', insertError);
       return {
         success: false,
         error: `Échec de la création : ${insertError?.message ?? 'erreur inconnue'}`,
